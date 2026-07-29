@@ -1,6 +1,6 @@
 use crate::machine::{Movement, Symbol};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Cell(Symbol);
 
 type CellIndex = i32;
@@ -31,14 +31,14 @@ impl DoublyInfiniteTape {
     pub fn r#move(&mut self, movement: Movement) {
         match movement {
             Movement::Left => {
-                if self.head < 0 && (self.head.abs() as usize >= self.negative_tape.len()) {
+                if self.head <= 0 && (self.head.abs() as usize >= self.negative_tape.len()) {
                     self.negative_tape.push(Cell(Symbol::Blank));
                 }
                 self.head -= 1;
             }
 
             Movement::Right => {
-                if self.head >= 0 && (self.head as usize >= self.positive_tape.len()) {
+                if self.head >= 0 && (self.head as usize >= self.positive_tape.len() - 1) {
                     // new empty cell
                     self.positive_tape.push(Cell(Symbol::Blank));
                 }
@@ -52,7 +52,7 @@ impl DoublyInfiniteTape {
     /// Shows the symbol under the head.
     pub fn peek(&self) -> &Symbol {
         match self.head {
-            ..0 => &self.negative_tape[self.head.abs() as usize].0,
+            ..0 => &self.negative_tape[(self.head.abs() - 1) as usize].0,
             _ => &self.positive_tape[self.head as usize].0,
         }
     }
@@ -60,8 +60,22 @@ impl DoublyInfiniteTape {
     /// Writes the specified symbol at the head.
     pub fn write(&mut self, value: Symbol) {
         match self.head {
-            ..0 => self.negative_tape[self.head.abs() as usize] = Cell(value),
+            ..0 => self.negative_tape[(self.head.abs() - 1) as usize] = Cell(value),
             _ => self.positive_tape[self.head as usize] = Cell(value),
         }
+    }
+
+    /// Returns the filled tape and the head position.
+    pub fn output(&self) -> (Vec<&Symbol>, usize) {
+        // reverse negative tape
+        let mut output_tape: Vec<_> = self.negative_tape.iter().map(|c| &c.0).rev().collect();
+
+        // add positive tape
+        output_tape.extend(self.positive_tape.iter().map(|c| &c.0));
+
+        (
+            output_tape,
+            (self.negative_tape.len() as CellIndex + self.head) as usize,
+        )
     }
 }
