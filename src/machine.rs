@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use crate::errors::*;
-use crate::machine::StepResult::Reject;
 use crate::tape::DoublyInfiniteTape;
 
 // use anyhow::Result;
@@ -102,33 +101,19 @@ impl TuringMachine {
             return Err(TMDefinitionError::MissingBlank);
         }
 
-        // check all transitions are correct
-        for (id, state_transitions) in transitions.iter() {
-            // all symbols in transition
-            // TODO: remove this, if there is no transition, then we stop
-            if state_transitions
-                .keys()
-                .cloned()
-                .collect::<HashSet<Symbol>>()
-                != alphabet
-            {
-                return Err(TMDefinitionError::MissingTransition(
-                    id.clone(),
-                    &alphabet - &state_transitions.keys().cloned().collect(),
-                ));
-            }
+        // check all transition states are valid
+        let transition_states = transitions
+            .values()
+            .map(|st| st.values())
+            .flatten()
+            .map(|t| &t.state)
+            .cloned()
+            .collect::<HashSet<_>>();
 
-            // transition states are valid
-            let transition_states = state_transitions
-                .values()
-                .map(|t| &t.state)
-                .cloned()
-                .collect::<HashSet<StateID>>();
-            if !transition_states.is_subset(&states) {
-                return Err(TMDefinitionError::InvalidStates(StateSet(
-                    &transition_states - &states,
-                )));
-            }
+        if !transition_states.is_subset(&states) {
+            return Err(TMDefinitionError::InvalidStates(StateSet(
+                &transition_states - &states,
+            )));
         }
 
         // ensure all input symbols in alphabet
@@ -166,29 +151,31 @@ impl TuringMachine {
             .get(&self.current_state)
             .ok_or(TMRuntimeError::InvalidState(self.current_state.clone()))?
             .transitions
-            .get(self.tape.peek())
-            .ok_or({
-                TMRuntimeError::InvalidTransition(
-                    self.current_state.clone(),
-                    self.tape.peek().clone(),
-                )
-            })?;
+            .get(self.tape.peek());
 
-        // TODO: if no transition, reject
+        match transition {
+            Some(t) => {
+                // execute transition
+                self.tape.write(t.write.clone());
+                self.tape.r#move(t.movement.clone());
+                self.current_state = t.state.clone();
 
-        self.tape.write(transition.write.clone());
-        self.tape.r#move(transition.movement.clone());
-        self.current_state = transition.state.clone();
+                // check if accepting state
+                if self.accepting_states.contains(&self.current_state) {
+                    return Ok(StepResult::Accept);
+                }
 
-        if self.accepting_states.contains(&self.current_state) {
-            return Ok(StepResult::Accept);
+                // stop in non-accepting state, reject
+                if t.movement == Movement::Stop {
+                    return Ok(StepResult::Reject);
+                }
+
+                Ok(StepResult::Continue)
+            }
+
+            // if no transition, reject
+            None => Ok(StepResult::Reject),
         }
-
-        if transition.movement == Movement::Stop {
-            return Ok(Reject);
-        }
-
-        Ok(StepResult::Continue)
     }
 
     pub fn read_tape(&self) -> (Vec<&Symbol>, usize) {

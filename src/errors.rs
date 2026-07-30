@@ -9,8 +9,6 @@ pub enum TMRuntimeError {
     InvalidState(StateID),
     #[error("Symbol {0} not in alphabet")]
     SymbolNotInAlphabet(Symbol),
-    #[error("Invalid transition from state {0} with symbol {1}")]
-    InvalidTransition(StateID, Symbol),
 }
 
 #[derive(Debug)]
@@ -32,8 +30,6 @@ impl fmt::Display for InputSet {
 
 #[derive(Error, Debug)]
 pub enum TMDefinitionError {
-    #[error("State {0} is missing transition for symbols {1:?}")]
-    MissingTransition(StateID, HashSet<Symbol>),
     #[error("Alphabet is missing the blank transition")]
     MissingBlank,
     #[error("Invalid states in transition table: {0}")]

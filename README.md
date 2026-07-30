@@ -9,5 +9,5 @@ A simple Turing Machine Simulator in Rust.
 
 Install [cargo](https://doc.rust-lang.org/stable/cargo/) (through [rustup](https://rustup.rs/)) and run:
 ```
-cargo run src/main.rs
+cargo run tms-rs
 ```
